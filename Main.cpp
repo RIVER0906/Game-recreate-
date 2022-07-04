@@ -105,8 +105,10 @@ private:
 	Texture m_texture;
 	bool gameover = false;
 	int32 variable1 = 3, myarg = 0, shotcool1 = 0, shotcool2 = 0, rush = 0, stepcool = 0;
+	int32 colorT = 0;
 	Array<Vec2> playerBullets;
-	Vec2 player1{ 400,500 };
+	Array<Circle> playerSide;
+	Vec2 player1{ 400, 500 };
 	static constexpr double r = 30.0;
 	// 自機のスピード
 	static constexpr double playerSpeed = 550.0;
@@ -116,11 +118,21 @@ private:
 	static constexpr double playershotcool1Time = 0.5;
 	// 自機ショットのクールタイムタイマー
 	double playerShotTimer = 0.0;
+	double theta;
 public:
 
 	Game(const InitData& init)
 		: IScene(init)
 	{
+		if (getData().num == 0) {
+			for (auto i : step(5))
+			{
+				const double t = Scene::Time();
+				theta = i * 72_deg + t * 180_deg;
+				playerSide << Circle{ OffsetCircular(player1, r, theta),5 };
+				colorT = i * 72 + t * 180;
+			}
+		}
 	}
 
 	void update() override
@@ -145,12 +157,14 @@ public:
 		const Vec2 move = Vec2(KeyRight.pressed() - KeyLeft.pressed(), KeyDown.pressed() - KeyUp.pressed())
 			.setLength(deltaTime * playerSpeed * (KeyShift.pressed() ? 2.0 : 1.0));
 		player1.moveBy(move).clamp(Scene::Rect());
-
+		
 		// 自機ショットの発射
 		if (playerShotTimer >= playershotcool1Time)
 		{
-			playerShotTimer = 0.0;
-			playerBullets << player1.movedBy(0, -50);
+			for (const auto& side : playerSide) {
+				playerShotTimer = 0.0;
+				playerBullets << player1.movedBy(side.x - player1.x, side.y-player1.y - 50);
+			}
 		}
 
 		// 自機ショットの移動
@@ -261,18 +275,14 @@ public:
 	void draw() const override
 	{
 		Scene::SetBackground(ColorF(0.2, 0.8, 0.6));
-		const double t = Scene::Time();
 		//自キャラ1
 		if (getData().num == 0) {
 			//自機
-			for (auto i : step(5))
-			{
-				const double theta = i * 72_deg + t * 180_deg;
-				const Vec2 pos = OffsetCircular(player1, r, theta);
-				Circle(pos.x, pos.y, 5).draw(HSV(i * 72 + t * 180));
+			for (const auto& side:playerSide) {
+				Circle(side).draw(HSV(colorT));
 				for (const auto& playerBullet : playerBullets)
 				{
-					Rect(playerBullet.x + pos.x - player1.x, playerBullet.y + pos.y - player1.y, 10, 20).draw(HSV(i * 72));
+					Rect(playerBullet.x, playerBullet.y, 5, 20).draw(HSV(colorT));
 				}
 			}
 			Circle(player1, 10).draw(Palette::Orange);
